@@ -32,7 +32,7 @@ run "credentials_use_correct_issuer" {
   }
 
   assert {
-    condition     = alltrue([for c in azurerm_federated_identity_credential.this : c.audience == toset(["api://AzureADTokenExchange"])])
+    condition     = alltrue([for c in azurerm_federated_identity_credential.this : length(c.audience) == 1 && contains(c.audience, "api://AzureADTokenExchange")])
     error_message = "All credentials must use the AzureADTokenExchange audience."
   }
 }
