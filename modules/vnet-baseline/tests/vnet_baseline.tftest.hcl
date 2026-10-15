@@ -1,17 +1,37 @@
 # Offline unit tests: `terraform test` against a mocked provider, no Azure credentials required.
 
-mock_provider "azurerm" {}
+# Mocked IDs must be well-formed ARM IDs: azurerm parses them when one resource references another.
+mock_provider "azurerm" {
+  mock_resource "azurerm_virtual_network" {
+    defaults = {
+      id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/platform-rg/providers/Microsoft.Network/virtualNetworks/unit-test"
+    }
+  }
 
+  mock_resource "azurerm_subnet" {
+    defaults = {
+      id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/platform-rg/providers/Microsoft.Network/virtualNetworks/unit-test/subnets/app"
+    }
+  }
+
+  mock_resource "azurerm_network_security_group" {
+    defaults = {
+      id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/platform-rg/providers/Microsoft.Network/networkSecurityGroups/unit-test-app-nsg"
+    }
+  }
+}
+
+# Flow logs are left at their default (enabled), so every run exercises the default path.
 variables {
-  name                = "unit-test"
-  location            = "usgovvirginia"
-  resource_group_name = "platform-rg"
-  address_space       = "10.20.0.0/16"
+  name                        = "unit-test"
+  location                    = "usgovvirginia"
+  resource_group_name         = "platform-rg"
+  address_space               = "10.20.0.0/16"
+  flow_log_storage_account_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/shared-rg/providers/Microsoft.Storage/storageAccounts/flowlogssa"
   subnets = {
     app  = "10.20.0.0/24"
     data = "10.20.1.0/24"
   }
-  enable_flow_logs = false
 }
 
 run "creates_vnet_subnets_and_nsgs" {
@@ -33,8 +53,33 @@ run "creates_vnet_subnets_and_nsgs" {
   }
 }
 
-run "flow_logs_disabled_by_default" {
+# apply (against the mock) so resource IDs are known and the flow log target can be compared.
+run "flow_logs_on_by_default_and_target_the_vnet" {
+  command = apply
+
+  assert {
+    condition     = length(azurerm_network_watcher_flow_log.this) == 1
+    error_message = "Expected a single VNet flow log by default."
+  }
+
+  assert {
+    condition     = azurerm_network_watcher_flow_log.this[0].target_resource_id == azurerm_virtual_network.this.id
+    error_message = "Flow log must target the VNet (NSG flow logs can no longer be created)."
+  }
+
+  assert {
+    condition     = output.flow_log_id == azurerm_network_watcher_flow_log.this[0].id
+    error_message = "flow_log_id output should expose the flow log ID."
+  }
+}
+
+run "flow_logs_can_be_disabled" {
   command = plan
+
+  variables {
+    enable_flow_logs            = false
+    flow_log_storage_account_id = null
+  }
 
   assert {
     condition     = length(azurerm_network_watcher_flow_log.this) == 0
@@ -42,18 +87,14 @@ run "flow_logs_disabled_by_default" {
   }
 }
 
-run "flow_logs_created_per_subnet_when_enabled" {
+run "flow_logs_require_storage_account" {
   command = plan
 
   variables {
-    enable_flow_logs            = true
-    flow_log_storage_account_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/shared-rg/providers/Microsoft.Storage/storageAccounts/flowlogssa"
+    flow_log_storage_account_id = null
   }
 
-  assert {
-    condition     = length(azurerm_network_watcher_flow_log.this) == 2
-    error_message = "Expected one flow log per subnet when enabled."
-  }
+  expect_failures = [azurerm_network_watcher_flow_log.this]
 }
 
 run "rejects_name_with_leading_hyphen" {
