@@ -8,6 +8,46 @@ Small, opinionated Terraform modules for a secure Azure platform baseline. Works
 | [`github-oidc-role`](modules/github-oidc-role) | User-assigned managed identity with federated credentials for GitHub Actions (no client secrets) | Rejects wildcard `sub` claims like `repo:*` / `repo:org/*`; supports multiple claims per identity |
 | [`monitor-action-group`](modules/monitor-action-group) | Azure Monitor action group for email and webhook notifications | Webhook URIs enforced `https://`; treated as sensitive — URLs never appear in resource addresses |
 
+## Architecture
+
+```mermaid
+flowchart LR
+  job["GitHub Actions job<br/>repo:org/repo:environment:prod"]
+
+  subgraph sub["Azure subscription: AzureCloud or AzureUSGovernment"]
+    subgraph idn["github-oidc-role"]
+      fic["Federated identity credential<br/>one per subject claim"]
+      uami["User-assigned managed identity"]
+    end
+    scope["Role assignments<br/>scope + role per entry"]
+
+    subgraph vnet["vnet-baseline"]
+      s1["Subnet: app"]
+      n1["NSG: app"]
+      s2["Subnet: data"]
+      n2["NSG: data"]
+    end
+    sa["Flow log storage account<br/>via Network Watcher, 90d"]
+
+    mon["Azure Monitor alert rules"]
+    ag["monitor-action-group<br/>common alert schema"]
+  end
+
+  email["Email receivers"]
+  hook["HTTPS webhooks only<br/>e.g. PagerDuty, ServiceNow"]
+
+  job -- "OIDC token, aud api://AzureADTokenExchange" --> fic
+  fic --> uami
+  uami --> scope
+  s1 --- n1
+  s2 --- n2
+  n1 -. "flow logs v2" .-> sa
+  n2 -. "flow logs v2" .-> sa
+  mon --> ag
+  ag --> email
+  ag --> hook
+```
+
 ## Usage
 
 ```hcl
@@ -31,6 +71,15 @@ module "vnet" {
 ```
 
 See [`examples/complete`](examples/complete) for a full working example covering all three modules.
+
+## Design decisions
+
+- **One codebase for commercial and Government.** Modules never hard-code endpoints or cloud names; the caller sets `environment = "usgovernment"` on the provider and the same code plans in either cloud.
+- **Federated credentials, not client secrets.** GitHub Actions exchanges a short-lived OIDC token for the managed identity. There is no secret to rotate, leak, or expire mid-deploy.
+- **Wildcard subjects are rejected at plan time.** Input validation refuses claims like `repo:*` or `repo:org/*`, so one misconfigured repo can't assume a production identity.
+- **Every subnet gets its own NSG, always associated.** There is no code path that creates an unprotected subnet, and per-subnet NSGs keep rule changes scoped to one tier.
+- **Sensitive values stay out of resource addresses.** Subject claims and webhook URIs are keyed by index, so org/repo names and webhook tokens don't surface in plan output, state paths, or CI logs.
+- **Webhooks must be HTTPS** and use the common alert schema, so downstream tools (PagerDuty, ServiceNow) parse a single payload format.
 
 ## Requirements
 
