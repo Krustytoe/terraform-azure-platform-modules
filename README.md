@@ -4,7 +4,7 @@ Small, opinionated Terraform modules for a secure Azure platform baseline. Works
 
 | Module | What it does | Key defaults |
 |---|---|---|
-| [`vnet-baseline`](modules/vnet-baseline) | Multi-subnet VNet with per-subnet NSGs and flow logs | One NSG per subnet, all associated; flow logs on by default (version 2, 90d retention) |
+| [`vnet-baseline`](modules/vnet-baseline) | Multi-subnet VNet with per-subnet NSGs and VNet flow logs | One NSG per subnet, all associated; VNet flow logs on by default (version 2, 90d retention), plan fails without a storage account |
 | [`github-oidc-role`](modules/github-oidc-role) | User-assigned managed identity with federated credentials for GitHub Actions (no client secrets) | Rejects wildcard `sub` claims like `repo:*` / `repo:org/*`; supports multiple claims per identity |
 | [`monitor-action-group`](modules/monitor-action-group) | Azure Monitor action group for email and webhook notifications | Webhook URIs enforced `https://`; treated as sensitive — URLs never appear in resource addresses |
 
@@ -28,6 +28,7 @@ flowchart LR
       n2["NSG: data"]
     end
     sa["Flow log storage account<br/>via Network Watcher, 90d"]
+    fl["VNet flow log v2<br/>covers every subnet"]
 
     mon["Azure Monitor alert rules"]
     ag["monitor-action-group<br/>common alert schema"]
@@ -41,8 +42,8 @@ flowchart LR
   uami --> scope
   s1 --- n1
   s2 --- n2
-  n1 -. "flow logs v2" .-> sa
-  n2 -. "flow logs v2" .-> sa
+  vnet -.-> fl
+  fl --> sa
   mon --> ag
   ag --> email
   ag --> hook
@@ -79,11 +80,12 @@ See [`examples/complete`](examples/complete) for a full working example covering
 - **Wildcard subjects are rejected at plan time.** Input validation refuses claims like `repo:*` or `repo:org/*`, so one misconfigured repo can't assume a production identity.
 - **Every subnet gets its own NSG, always associated.** There is no code path that creates an unprotected subnet, and per-subnet NSGs keep rule changes scoped to one tier.
 - **Sensitive values stay out of resource addresses.** Subject claims and webhook URIs are keyed by index, so org/repo names and webhook tokens don't surface in plan output, state paths, or CI logs.
+- **Flow logs are on by default, at the VNet level.** VNet flow logs replace NSG flow logs, which Azure no longer allows creating. Turning them off is an explicit `enable_flow_logs = false`, and leaving out the storage account fails the plan instead of failing the deploy.
 - **Webhooks must be HTTPS** and use the common alert schema, so downstream tools (PagerDuty, ServiceNow) parse a single payload format.
 
 ## Requirements
 
-Terraform >= 1.7, Azure provider >= 3.100. Run `terraform test` inside any module directory for offline validation — no Azure credentials required.
+Terraform >= 1.7. Azure provider >= 4.11 for `vnet-baseline` (VNet flow logs), >= 3.100 for the other modules. Run `terraform test` inside any module directory for offline validation — no Azure credentials required.
 
 ## Testing
 

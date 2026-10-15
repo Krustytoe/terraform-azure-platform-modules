@@ -33,13 +33,13 @@ variable "subnets" {
 }
 
 variable "enable_flow_logs" {
-  description = "Enable NSG flow logs to a storage account."
+  description = "Enable VNet flow logs to a storage account. On by default; requires flow_log_storage_account_id."
   type        = bool
   default     = true
 }
 
 variable "flow_log_storage_account_id" {
-  description = "Storage account resource ID for NSG flow logs. Required when enable_flow_logs = true."
+  description = "Storage account resource ID for VNet flow logs (Standard general-purpose v2, same region as the VNet). Required when enable_flow_logs = true."
   type        = string
   default     = null
 }
