@@ -1,5 +1,7 @@
 # terraform-azure-platform-modules
 
+[![CI](https://github.com/Krustytoe/terraform-azure-platform-modules/actions/workflows/terraform.yml/badge.svg)](https://github.com/Krustytoe/terraform-azure-platform-modules/actions/workflows/terraform.yml) [![Release](https://img.shields.io/github/v/release/Krustytoe/terraform-azure-platform-modules)](https://github.com/Krustytoe/terraform-azure-platform-modules/releases/latest) [![License](https://img.shields.io/github/license/Krustytoe/terraform-azure-platform-modules)](LICENSE)
+
 Small, opinionated Terraform modules for a secure Azure platform baseline. Works **unchanged in both Azure commercial and Azure Government** by letting the caller configure the `azurerm` provider with `environment = "usgovernment"`.
 
 | Module | What it does | Key defaults |
@@ -58,7 +60,7 @@ provider "azurerm" {
 }
 
 module "vnet" {
-  source = "git::https://github.com/Krustytoe/terraform-azure-platform-modules.git//modules/vnet-baseline?ref=v0.1.0"
+  source = "git::https://github.com/Krustytoe/terraform-azure-platform-modules.git//modules/vnet-baseline?ref=v0.2.0" # x-release-please-version
 
   name                = "platform-prod"
   location            = "usgovvirginia"
@@ -68,6 +70,9 @@ module "vnet" {
     app  = "10.20.0.0/24"
     data = "10.20.1.0/24"
   }
+
+  # VNet flow logs are on by default and need a StorageV2 account in the same region
+  flow_log_storage_account_id = azurerm_storage_account.flowlogs.id
 }
 ```
 
