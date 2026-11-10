@@ -101,6 +101,10 @@ terraform test
 
 All tests use `mock_provider "azurerm"` so they run anywhere Terraform does.
 
+## Used by
+
+- [azure-genai-platform](https://github.com/Krustytoe/azure-genai-platform): keyless RAG platform on Azure OpenAI + AI Search, designed to run on a `vnet-baseline` VNet (its private endpoints go in a dedicated subnet) and be deployed through a `github-oidc-role` identity.
+
 ## License
 
 MIT
