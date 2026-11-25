@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/Krustytoe/terraform-azure-platform-modules/actions/workflows/terraform.yml/badge.svg)](https://github.com/Krustytoe/terraform-azure-platform-modules/actions/workflows/terraform.yml) [![Release](https://img.shields.io/github/v/release/Krustytoe/terraform-azure-platform-modules)](https://github.com/Krustytoe/terraform-azure-platform-modules/releases/latest) [![License](https://img.shields.io/github/license/Krustytoe/terraform-azure-platform-modules)](LICENSE)
 
+> **When to use this repo:** Use this repo when you need foundational Azure building blocks—virtual networks, passwordless GitHub deployment permissions, and alert notification groups—that work unchanged in both commercial Azure and Azure Government.
+
 Small, opinionated Terraform modules for a secure Azure platform baseline. Works **unchanged in both Azure commercial and Azure Government** by letting the caller configure the `azurerm` provider with `environment = "usgovernment"`.
 
 | Module | What it does | Key defaults |
