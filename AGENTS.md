@@ -14,7 +14,7 @@ Small, opinionated Terraform modules for a secure Azure platform baseline. Every
   - `tests/<name>.tftest.hcl` — offline unit tests against a mocked `azurerm` provider
 - `examples/complete/main.tf` — all modules wired together (not in the CI matrix).
 - `.tflint.hcl` — repo-root tflint config (terraform `recommended` preset + `tflint-ruleset-azurerm`).
-- `.github/workflows/` — `terraform.yml` (fmt/validate/test + tflint), `security.yml` (Trivy config scan), `release-please.yml`, `dependabot-auto-merge.yml`, `ruler.yml`.
+- `.github/workflows/` — `terraform.yml` (fmt/validate/test + tflint), `security.yml` (Trivy config scan), `release-please.yml`, `scorecard.yml` (OpenSSF Scorecard), `dependabot-auto-merge.yml`, `ruler.yml`.
 - `release-please-config.json`, `.release-please-manifest.json`, `CHANGELOG.md` — managed by release-please; do not hand-edit versions or the changelog.
 - `.ruler/` — source of truth for agent instructions.
 
